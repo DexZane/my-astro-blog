@@ -167,7 +167,7 @@ hr {
 	}
 }
 
-@media (max-width: 430px) {
+@media (max-width: 448px) {
 	main {
 		padding-left: max(1em, var(--safe-area-left));
 		padding-right: max(1em, var(--safe-area-right));
