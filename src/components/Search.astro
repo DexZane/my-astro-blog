@@ -1,22 +1,38 @@
 ---
-import { getLangFromUrl, useTranslations } from '../i18n/utils';
-
-const lang = getLangFromUrl(Astro.url);
-const t = useTranslations(lang);
 const normalizedBaseUrl = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`;
 ---
 
-<div id="search" class="search-container"></div>
+<site-search>
+  <div id="search" class="search-container"></div>
+</site-search>
 
 <link href={`${normalizedBaseUrl}pagefind/pagefind-ui.css`} rel="stylesheet" />
 <script is:inline src={`${normalizedBaseUrl}pagefind/pagefind-ui.js`}></script>
 
-<script is:inline>
-  window.addEventListener('DOMContentLoaded', (event) => {
-    new PagefindUI({ element: "#search", showSubResults: true });
-  });
+<script>
+  class SiteSearch extends HTMLElement {
+    connectedCallback() {
+      const target = this.querySelector('#search');
+      if (!target || target.dataset.initialized) return;
+      target.dataset.initialized = "true";
+
+      const init = () => {
+        if (window.PagefindUI) {
+          new window.PagefindUI({ element: "#search", showSubResults: true });
+        } else {
+          setTimeout(init, 50);
+        }
+      };
+      
+      init();
+    }
+  }
+
+  if (!customElements.get('site-search')) {
+    customElements.define('site-search', SiteSearch);
+  }
 </script>
 
 <style>
