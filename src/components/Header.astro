@@ -60,6 +60,12 @@ const searchPath = translatePath('/search/');
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: 0.8rem;
+	}
+	.internal-links {
+		display: flex;
+		align-items: center;
+		gap: 0.1rem;
 	}
 	nav a {
 		padding: 1em 0.5em;
@@ -81,6 +87,28 @@ const searchPath = translatePath('/search/');
 		gap: 0.75rem;
 	}
 	@media (max-width: 720px) {
+		nav {
+			flex-wrap: wrap;
+			align-items: center;
+			padding: 0.3rem 0;
+		}
+		h2 {
+			order: 1;
+		}
+		.header-actions {
+			order: 2;
+			margin-left: auto;
+		}
+		.internal-links {
+			order: 3;
+			width: 100%;
+			overflow-x: auto;
+			white-space: nowrap;
+			padding-bottom: 0.2rem;
+		}
+		nav a {
+			padding: 0.75em 0.5em;
+		}
 		.social-links {
 			display: none;
 		}

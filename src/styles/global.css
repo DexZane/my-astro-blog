@@ -61,7 +61,7 @@ body {
 	word-wrap: break-word;
 	overflow-wrap: break-word;
 	color: var(--text);
-	font-size: 20px;
+	font-size: 18px;
 	line-height: 1.7;
 }
 main {
@@ -151,10 +151,17 @@ hr {
 }
 @media (max-width: 720px) {
 	body {
-		font-size: 18px;
+		font-size: 16px;
 	}
 	main {
-		padding: 1em;
+		padding: 0.9em;
+	}
+}
+
+@media (max-width: 960px) {
+	main {
+		max-width: calc(100% - 1.4em);
+		padding: 1.5em 0.7em;
 	}
 }
 
