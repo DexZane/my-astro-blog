@@ -9,13 +9,68 @@ const { lang = 'en' } = Astro.props;
 <div class="giscus"></div>
 
 <script is:inline define:vars={{ lang }}>
+	const GISCUS_SRC = 'https://giscus.app/client.js';
+	const GISCUS_ORIGIN = 'https://giscus.app';
+	const GISCUS_PAGELOAD_HANDLER_KEY = '__giscusPageLoadHandler__';
+	const GISCUS_THEME_OBSERVER_KEY = '__giscusThemeObserver__';
+	const GISCUS_PATHNAME_KEY = '__giscusPathname__';
+	const GISCUS_LANG_MAP = {
+		'zh-cn': 'zh-CN'
+	};
+
+	function getGiscusLang(locale) {
+		return GISCUS_LANG_MAP[locale] || locale;
+	}
+
 	function getGiscusTheme() {
 		return document.documentElement.classList.contains('dark') ? 'transparent_dark' : 'light';
 	}
 
-	function loadGiscus() {
+	function updateGiscusTheme() {
+		const theme = getGiscusTheme();
+		const iframe = document.querySelector('iframe.giscus-frame');
+		if (iframe && iframe.contentWindow) {
+			iframe.contentWindow.postMessage({ giscus: { setConfig: { theme } } }, GISCUS_ORIGIN);
+		}
+	}
+
+	function ensureThemeObserver() {
+		if (window[GISCUS_THEME_OBSERVER_KEY]) {
+			return;
+		}
+
+		const observer = new MutationObserver((mutations) => {
+			mutations.forEach((mutation) => {
+				if (mutation.attributeName === 'class') {
+					updateGiscusTheme();
+				}
+			});
+		});
+
+		observer.observe(document.documentElement, { attributes: true });
+		window[GISCUS_THEME_OBSERVER_KEY] = observer;
+	}
+
+	function loadGiscus(pathChanged) {
+		const container = document.querySelector('.giscus');
+		if (!container) {
+			return;
+		}
+
+		if (pathChanged) {
+			container.innerHTML = '';
+		}
+
+		if (!pathChanged && container.querySelector('iframe.giscus-frame')) {
+			return;
+		}
+
+		if (container.querySelector(`script[src="${GISCUS_SRC}"]`)) {
+			return;
+		}
+
 		const script = document.createElement('script');
-		script.src = 'https://giscus.app/client.js';
+		script.src = GISCUS_SRC;
 		script.setAttribute('data-repo', 'mimanchi-dongze/my-astro-blog');
 		script.setAttribute('data-repo-id', 'R_kgDORswhuQ');
 		script.setAttribute('data-category', 'General');
@@ -26,33 +81,27 @@ const { lang = 'en' } = Astro.props;
 		script.setAttribute('data-emit-metadata', '0');
 		script.setAttribute('data-input-position', 'bottom');
 		script.setAttribute('data-theme', getGiscusTheme());
-		script.setAttribute('data-lang', lang);
+		script.setAttribute('data-lang', getGiscusLang(lang));
 		script.setAttribute('crossorigin', 'anonymous');
 		script.async = true;
-
-		const container = document.querySelector('.giscus');
-		if (container) {
-			container.appendChild(script);
-		}
+		container.appendChild(script);
 	}
 
-	loadGiscus();
+	function initializeGiscus() {
+		const pathname = window.location.pathname;
+		const pathChanged = window[GISCUS_PATHNAME_KEY] !== pathname;
+		window[GISCUS_PATHNAME_KEY] = pathname;
 
-	// Listen for theme changes
-	const observer = new MutationObserver((mutations) => {
-		mutations.forEach((mutation) => {
-			if (mutation.attributeName === 'class') {
-				const theme = getGiscusTheme();
-				const iframe = document.querySelector('iframe.giscus-frame');
-				if (iframe && iframe.contentWindow) {
-					iframe.contentWindow.postMessage(
-						{ giscus: { setConfig: { theme } } },
-						'https://giscus.app'
-					);
-				}
-			}
-		});
-	});
+		loadGiscus(pathChanged);
+		ensureThemeObserver();
+		updateGiscusTheme();
+	}
 
-	observer.observe(document.documentElement, { attributes: true });
+	if (!window[GISCUS_PAGELOAD_HANDLER_KEY]) {
+		const onPageLoad = () => initializeGiscus();
+		document.addEventListener('astro:page-load', onPageLoad);
+		window[GISCUS_PAGELOAD_HANDLER_KEY] = onPageLoad;
+	}
+
+	initializeGiscus();
 </script>
