@@ -3,12 +3,15 @@ import { getLangFromUrl, useTranslations } from '../i18n/utils';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+const normalizedBaseUrl = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
 ---
 
 <div id="search" class="search-container"></div>
 
-<link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
-<script is:inline src="/pagefind/pagefind-ui.js"></script>
+<link href={`${normalizedBaseUrl}pagefind/pagefind-ui.css`} rel="stylesheet" />
+<script is:inline src={`${normalizedBaseUrl}pagefind/pagefind-ui.js`}></script>
 
 <script is:inline>
   window.addEventListener('DOMContentLoaded', (event) => {

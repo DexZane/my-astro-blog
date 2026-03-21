@@ -14,6 +14,10 @@ export function useTranslations(lang: keyof typeof ui) {
 
 export function useTranslatedPath(lang: keyof typeof ui) {
   return function translatePath(path: string, l: string = lang) {
-    return !l || l === defaultLang ? path : `/${l}${path}`
+    const base = import.meta.env.BASE_URL;
+    const normalizedBase = base === '/' ? '' : base.replace(/\/$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const localizedPath = !l || l === defaultLang ? normalizedPath : `/${l}${normalizedPath}`;
+    return `${normalizedBase}${localizedPath}`;
   }
 }

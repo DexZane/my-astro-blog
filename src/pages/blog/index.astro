@@ -6,8 +6,10 @@ import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import { useTranslatedPath } from '../../i18n/utils';
 
 const lang = 'zh-cn';
+const translatePath = useTranslatedPath(lang);
 const posts = (await getCollection('blog'))
 	.filter((post) => post.id.startsWith(`${lang}/`))
 	.sort(
@@ -104,7 +106,7 @@ const posts = (await getCollection('blog'))
 						const slug = post.id.slice(lang.length + 1);
 						return (
 							<li>
-								<a href={`/blog/${slug}/`}>
+								<a href={translatePath(`/blog/${slug}/`)}>
 									{post.data.heroImage && (
 										<Image width={720} height={360} src={post.data.heroImage} alt="" />
 									)}

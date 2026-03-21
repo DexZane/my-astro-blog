@@ -8,16 +8,20 @@ import ThemeToggle from './ThemeToggle.astro';
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const translatePath = useTranslatedPath(lang);
+const homePath = translatePath('/');
+const blogPath = translatePath('/blog/');
+const aboutPath = translatePath('/about/');
+const searchPath = translatePath('/search/');
 ---
 
 <header>
 	<nav>
-		<h2><a href={translatePath('/')}>{SITE_TITLE}</a></h2>
+		<h2><a href={homePath}>{SITE_TITLE}</a></h2>
 		<div class="internal-links">
-			<HeaderLink href={translatePath('/')}>{t('nav.home')}</HeaderLink>
-			<HeaderLink href={translatePath('/blog')}>{t('nav.blog')}</HeaderLink>
-			<HeaderLink href={translatePath('/about')}>{t('nav.about')}</HeaderLink>
-			<HeaderLink href={translatePath('/search')}>{t('nav.search')}</HeaderLink>
+			<HeaderLink href={homePath}>{t('nav.home')}</HeaderLink>
+			<HeaderLink href={blogPath}>{t('nav.blog')}</HeaderLink>
+			<HeaderLink href={aboutPath}>{t('nav.about')}</HeaderLink>
+			<HeaderLink href={searchPath}>{t('nav.search')}</HeaderLink>
 		</div>
 		<div class="header-actions">
 			<LanguagePicker />
