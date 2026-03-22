@@ -1,12 +1,12 @@
 ---
 import { Image } from 'astro:assets';
-import type { CollectionEntry } from 'astro:content';
+import { type CollectionEntry, getCollection } from 'astro:content';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import Giscus from '../components/Giscus.astro';
-import { getLangFromUrl } from '../i18n/utils';
+import { getLangFromUrl, useTranslatedPath } from '../i18n/utils';
 import { SITE_AUTHOR } from '../consts';
 
 type Props = CollectionEntry<'blog'>['data'] & {
@@ -14,8 +14,27 @@ type Props = CollectionEntry<'blog'>['data'] & {
 	readingTime?: number;
 };
 
-const { title, description, pubDate, updatedDate, heroImage, headings, readingTime } = Astro.props;
+const { title, description, pubDate, updatedDate, heroImage, headings, readingTime, tags = [] } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
+const translatePath = useTranslatedPath(lang);
+
+const allPosts = await getCollection('blog');
+const relatedPosts = allPosts
+	.filter((post) => post.id.startsWith(`${lang}/`) && post.data.title !== title)
+	.map((post) => {
+		const sharedTags = post.data.tags?.filter((tag) => tags.includes(tag)) || [];
+		return { ...post, sharedTagsCount: sharedTags.length };
+	})
+	.filter((post) => post.sharedTagsCount > 0)
+	.sort((a, b) => {
+		if (a.sharedTagsCount !== b.sharedTagsCount) {
+			return b.sharedTagsCount - a.sharedTagsCount;
+		}
+		const aDate = new Date(a.data.publishedAt || a.data.pubDate).valueOf();
+		const bDate = new Date(b.data.publishedAt || b.data.pubDate).valueOf();
+		return bDate - aDate;
+	})
+	.slice(0, 3);
 
 const blogPostingSchema = {
 	"@context": "https://schema.org",
@@ -57,6 +76,9 @@ const blogPostingSchema = {
 				margin: auto;
 				padding: 1em;
 				color: rgb(var(--gray-dark));
+			}
+			.prose img {
+				cursor: zoom-in;
 			}
 			.title {
 				margin-bottom: 1em;
@@ -101,14 +123,201 @@ const blogPostingSchema = {
 			.toc a {
 				text-decoration: none;
 				color: rgb(var(--gray-dark));
+				transition: color 0.2s ease;
 			}
-			.toc a:hover {
+			.toc a:hover, .toc a.active {
 				color: var(--accent);
+			}
+			.toc a.active {
+				font-weight: bold;
+			}
+			#reading-progress {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 0%;
+				height: 4px;
+				background-color: var(--accent);
+				z-index: 9999;
+				transition: width 0.1s ease-out;
+			}
+			#back-to-top {
+				position: fixed;
+				bottom: 2rem;
+				right: 2rem;
+				width: 3rem;
+				height: 3rem;
+				border-radius: 50%;
+				background-color: var(--accent);
+				color: white;
+				border: none;
+				box-shadow: var(--box-shadow);
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				opacity: 0;
+				visibility: hidden;
+				transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.2s ease;
+				z-index: 9999;
+			}
+			#back-to-top.show {
+				opacity: 1;
+				visibility: visible;
+			}
+			#back-to-top:hover {
+				transform: translateY(-3px);
+			}
+			.code-block-wrapper {
+				position: relative;
+				margin-bottom: 1.5em;
+				border-radius: 8px;
+				overflow: hidden;
+				box-shadow: var(--box-shadow);
+				background-color: #1e1e1e;
+			}
+			.code-block-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding: 0.5rem 1rem;
+				background-color: #2d2d2d;
+				border-bottom: 1px solid #444;
+			}
+			.mac-dots {
+				display: flex;
+				gap: 0.5rem;
+			}
+			.mac-dot {
+				width: 12px;
+				height: 12px;
+				border-radius: 50%;
+			}
+			.mac-dot.red { background-color: #ff5f56; }
+			.mac-dot.yellow { background-color: #ffbd2e; }
+			.mac-dot.green { background-color: #27c93f; }
+			.copy-button {
+				background: transparent;
+				border: none;
+				color: #a1a1aa;
+				cursor: pointer;
+				font-size: 0.875rem;
+				transition: color 0.2s ease;
+				padding: 0;
+			}
+			.copy-button:hover {
+				color: #fff;
+			}
+			.code-block-wrapper pre {
+				margin: 0 !important;
+				border-radius: 0 0 8px 8px !important;
+			}
+			#lightbox-overlay {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100vw;
+				height: 100vh;
+				background-color: rgba(0, 0, 0, 0.8);
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				z-index: 10000;
+				opacity: 0;
+				visibility: hidden;
+				transition: opacity 0.3s ease, visibility 0.3s ease;
+				cursor: zoom-out;
+			}
+			#lightbox-overlay.show {
+				opacity: 1;
+				visibility: visible;
+			}
+			#lightbox-image {
+				max-width: 90%;
+				max-height: 90%;
+				object-fit: contain;
+				border-radius: 8px;
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+				transition: transform 0.3s ease;
+				transform: scale(0.95);
+			}
+			#lightbox-overlay.show #lightbox-image {
+				transform: scale(1);
+			}
+			#lightbox-close {
+				position: absolute;
+				top: 20px;
+				right: 20px;
+				background: none;
+				border: none;
+				color: white;
+				font-size: 2rem;
+				cursor: pointer;
+				z-index: 10001;
+				padding: 10px;
+				line-height: 1;
+			}
+			.related-posts {
+				margin-top: 3em;
+				padding-top: 2em;
+				border-top: 1px solid rgb(var(--gray-light));
+			}
+			.related-posts h3 {
+				margin-bottom: 1.5em;
+				font-size: 1.5em;
+			}
+			.related-posts-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+				gap: 1.5rem;
+				list-style-type: none;
+				padding: 0;
+				margin: 0;
+			}
+			.related-post-item {
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 12px;
+				padding: 0.8rem;
+				background: rgb(var(--gray-light) / 16%);
+				transition: transform 0.2s ease, box-shadow 0.2s ease;
+			}
+			.related-post-item:hover {
+				transform: translateY(-3px);
+				box-shadow: var(--box-shadow);
+			}
+			.related-post-link {
+				text-decoration: none;
+				color: inherit;
+				display: flex;
+				flex-direction: column;
+				gap: 0.8rem;
+			}
+			.related-post-link img {
+				width: 100%;
+				border-radius: 8px;
+				aspect-ratio: 2 / 1;
+				object-fit: cover;
+			}
+			.related-post-title {
+				margin: 0;
+				font-size: 1.1rem;
+				line-height: 1.4;
+				color: rgb(var(--black));
+				transition: color 0.2s ease;
+			}
+			.related-post-link:hover .related-post-title {
+				color: rgb(var(--accent));
+			}
+			.related-post-date {
+				margin: 0;
+				font-size: 0.85rem;
+				color: rgb(var(--gray));
 			}
 		</style>
 	</head>
 
 	<body>
+		<div id="reading-progress"></div>
 		<Header />
 		<main>
 			<article>
@@ -152,10 +361,261 @@ const blogPostingSchema = {
 						)
 					}
 					<slot />
+					{relatedPosts.length > 0 && (
+						<div class="related-posts">
+							<h3>{lang === 'zh-cn' ? '相关文章' : 'Related Posts'}</h3>
+							<ul class="related-posts-grid">
+								{relatedPosts.map((post) => {
+									const slug = post.id.slice(lang.length + 1);
+									return (
+										<li class="related-post-item">
+											<a class="related-post-link" href={translatePath(`/blog/${slug}/`)}>
+												{post.data.heroImage && (
+													<Image width={360} height={180} src={post.data.heroImage} alt="" />
+												)}
+												<div>
+													<h4 class="related-post-title">{post.data.title}</h4>
+													<p class="related-post-date">
+														<FormattedDate date={post.data.publishedAt || post.data.pubDate} />
+													</p>
+												</div>
+											</a>
+										</li>
+									);
+								})}
+							</ul>
+						</div>
+					)}
 				</div>
 				<Giscus lang={lang} />
 			</article>
 		</main>
 		<Footer />
+		<button id="back-to-top" aria-label="Back to top">
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<line x1="12" y1="19" x2="12" y2="5"></line>
+				<polyline points="5 12 12 5 19 12"></polyline>
+			</svg>
+		</button>
+		<div id="lightbox-overlay">
+			<button id="lightbox-close" aria-label="Close lightbox">&times;</button>
+			<img id="lightbox-image" src="" alt="Lightbox image" />
+		</div>
+		<script>
+			const updateProgress = () => {
+				const progressBar = document.getElementById('reading-progress');
+				if (!progressBar) return;
+
+				const article = document.querySelector('article');
+				if (!article) return;
+
+				const rect = article.getBoundingClientRect();
+				const windowHeight = window.innerHeight;
+				const totalScrollable = rect.height - windowHeight;
+				
+				let progress = 0;
+				if (totalScrollable > 0) {
+					const articleTop = window.scrollY + rect.top;
+					const scrollY = window.scrollY;
+					
+					if (scrollY < articleTop) {
+						progress = 0;
+					} else if (scrollY > articleTop + totalScrollable) {
+						progress = 100;
+					} else {
+						progress = ((scrollY - articleTop) / totalScrollable) * 100;
+					}
+				} else {
+					progress = 100;
+				}
+				
+				progressBar.style.width = `${progress}%`;
+			};
+
+			const updateActiveToc = () => {
+				const tocLinks = document.querySelectorAll('.toc a');
+				if (tocLinks.length === 0) return;
+
+				const headings = Array.from(document.querySelectorAll('.prose h2[id], .prose h3[id], .prose h4[id], .prose h5[id], .prose h6[id]'));
+				if (headings.length === 0) return;
+
+				let activeHeading = headings[0];
+				const scrollY = window.scrollY;
+
+				for (const heading of headings) {
+					const top = heading.getBoundingClientRect().top + window.scrollY;
+					if (scrollY >= top - 150) {
+						activeHeading = heading;
+					} else {
+						break;
+					}
+				}
+
+				const isAtBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 50;
+				if (isAtBottom) {
+					activeHeading = headings[headings.length - 1];
+				}
+
+				const activeId = activeHeading.getAttribute('id');
+				tocLinks.forEach(link => {
+					if (link.getAttribute('href') === `#${activeId}`) {
+						link.classList.add('active');
+					} else {
+						link.classList.remove('active');
+					}
+				});
+			};
+
+			const handleScroll = () => {
+				updateProgress();
+				updateActiveToc();
+				const backToTopBtn = document.getElementById('back-to-top');
+				if (backToTopBtn) {
+					if (window.scrollY > 300) {
+						backToTopBtn.classList.add('show');
+					} else {
+						backToTopBtn.classList.remove('show');
+					}
+				}
+			};
+
+			const initBackToTop = () => {
+				const backToTopBtn = document.getElementById('back-to-top');
+				if (backToTopBtn) {
+					backToTopBtn.addEventListener('click', () => {
+						window.scrollTo({ top: 0, behavior: 'smooth' });
+					});
+				}
+			};
+
+			const initCodeBlocks = () => {
+				const codeBlocks = document.querySelectorAll('pre.astro-code');
+				codeBlocks.forEach((pre) => {
+					if (pre.parentElement?.classList.contains('code-block-wrapper')) return;
+
+					const wrapper = document.createElement('div');
+					wrapper.className = 'code-block-wrapper';
+
+					const header = document.createElement('div');
+					header.className = 'code-block-header';
+
+					const macDots = document.createElement('div');
+					macDots.className = 'mac-dots';
+					macDots.innerHTML = `
+						<div class="mac-dot red"></div>
+						<div class="mac-dot yellow"></div>
+						<div class="mac-dot green"></div>
+					`;
+
+					const copyButton = document.createElement('button');
+					copyButton.className = 'copy-button';
+					copyButton.textContent = 'Copy';
+					copyButton.setAttribute('aria-label', 'Copy code to clipboard');
+
+					copyButton.addEventListener('click', async () => {
+						const code = pre.textContent;
+						if (!code) return;
+						try {
+							await navigator.clipboard.writeText(code);
+							copyButton.textContent = 'Copied!';
+							setTimeout(() => {
+								copyButton.textContent = 'Copy';
+							}, 2000);
+						} catch (err) {
+							console.error('Failed to copy code: ', err);
+							copyButton.textContent = 'Error';
+							setTimeout(() => {
+								copyButton.textContent = 'Copy';
+							}, 2000);
+						}
+					});
+
+					header.appendChild(macDots);
+					header.appendChild(copyButton);
+
+					pre.parentNode?.insertBefore(wrapper, pre);
+					wrapper.appendChild(header);
+					wrapper.appendChild(pre);
+				});
+			};
+
+			if (!window._hasScrollListener) {
+				window.addEventListener('scroll', handleScroll);
+				window._hasScrollListener = true;
+			}
+
+			const initLightbox = () => {
+				const overlay = document.getElementById('lightbox-overlay');
+				const lightboxImg = document.getElementById('lightbox-image');
+				const closeBtn = document.getElementById('lightbox-close');
+				const images = document.querySelectorAll('.prose img');
+
+				if (!overlay || !lightboxImg || !closeBtn) return;
+
+				const openLightbox = (src, alt) => {
+					lightboxImg.src = src;
+					lightboxImg.alt = alt || 'Enlarged image';
+					overlay.classList.add('show');
+					document.body.style.overflow = 'hidden';
+				};
+
+				const closeLightbox = () => {
+					overlay.classList.remove('show');
+					document.body.style.overflow = '';
+					setTimeout(() => {
+						if (!overlay.classList.contains('show')) {
+							lightboxImg.src = '';
+						}
+					}, 300);
+				};
+
+				images.forEach(img => {
+					img.addEventListener('click', () => {
+						openLightbox(img.src, img.alt);
+					});
+				});
+
+				overlay.addEventListener('click', (e) => {
+					if (e.target === overlay || e.target === closeBtn) {
+						closeLightbox();
+					}
+				});
+
+				if (!window._lightboxKeydownListener) {
+					window._lightboxKeydownListener = (e) => {
+						const currentOverlay = document.getElementById('lightbox-overlay');
+						if (e.key === 'Escape' && currentOverlay && currentOverlay.classList.contains('show')) {
+							currentOverlay.classList.remove('show');
+							document.body.style.overflow = '';
+						}
+					};
+					document.addEventListener('keydown', window._lightboxKeydownListener);
+				}
+			};
+
+			const initCallouts = () => {
+				const blockquotes = document.querySelectorAll('.prose blockquote');
+				blockquotes.forEach((blockquote) => {
+					const firstP = blockquote.querySelector('p:first-child');
+					if (!firstP) return;
+					
+					const firstStrong = firstP.querySelector('strong:first-child');
+					if (!firstStrong) return;
+					
+					const text = firstStrong.textContent?.trim().toLowerCase();
+					if (text === 'note' || text === 'warning' || text === 'tip') {
+						blockquote.classList.add(`callout-${text}`);
+					}
+				});
+			};
+
+			document.addEventListener('astro:page-load', () => {
+				handleScroll();
+				initBackToTop();
+				initCodeBlocks();
+				initLightbox();
+				initCallouts();
+			});
+		</script>
 	</body>
 </html>

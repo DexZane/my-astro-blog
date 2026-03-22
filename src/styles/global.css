@@ -154,6 +154,53 @@ blockquote {
 	margin: 0;
 	font-size: 1.333em;
 }
+
+/* Callouts / Admonitions */
+blockquote.callout-note,
+blockquote.callout-warning,
+blockquote.callout-tip {
+	font-size: 1rem;
+	padding: 1rem 1rem 1rem 1.5rem;
+	margin: 1.5em 0;
+	border-radius: 0 8px 8px 0;
+}
+
+blockquote.callout-note {
+	border-left-color: #3b82f6;
+	background-color: rgba(59, 130, 246, 0.1);
+}
+
+blockquote.callout-warning {
+	border-left-color: #f59e0b;
+	background-color: rgba(245, 158, 11, 0.1);
+}
+
+blockquote.callout-tip {
+	border-left-color: #10b981;
+	background-color: rgba(16, 185, 129, 0.1);
+}
+
+blockquote.callout-note p:first-child strong:first-child,
+blockquote.callout-warning p:first-child strong:first-child,
+blockquote.callout-tip p:first-child strong:first-child {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 0.5rem;
+	font-size: 1.1rem;
+}
+
+blockquote.callout-note p:first-child strong:first-child::before {
+	content: "ℹ️";
+}
+
+blockquote.callout-warning p:first-child strong:first-child::before {
+	content: "⚠️";
+}
+
+blockquote.callout-tip p:first-child strong:first-child::before {
+	content: "💡";
+}
 hr {
 	border: none;
 	border-top: 1px solid rgb(var(--gray-light));
@@ -216,3 +263,29 @@ hr {
     scroll-behavior: auto !important;
   }
 }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgb(var(--gray-light));
+	border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: rgb(var(--gray));
+}
+
+/* Text Selection */
+::selection {
+	background-color: var(--accent);
+	color: var(--bg);
+}
+
