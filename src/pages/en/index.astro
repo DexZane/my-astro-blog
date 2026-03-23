@@ -11,10 +11,43 @@ const getPublishedTime = (publishedAt: string, pubDate: Date) => {
 	return Number.isNaN(publishedAtTime) ? pubDate.valueOf() : publishedAtTime;
 };
 
-const posts = (await getCollection('blog'))
+const allPosts = await getCollection('blog');
+const posts = allPosts
 	.filter((post) => post.id.startsWith('en/'))
-	.sort((a, b) => getPublishedTime(b.data.publishedAt, b.data.pubDate) - getPublishedTime(a.data.publishedAt, a.data.pubDate))
-	.slice(0, 3);
+	.sort((a, b) => getPublishedTime(b.data.publishedAt, b.data.pubDate) - getPublishedTime(a.data.publishedAt, a.data.pubDate));
+
+const latestPosts = posts.slice(0, 4);
+const featuredPosts = posts.filter(post => post.data.tags.includes('tutorial') || post.data.tags.includes('retrospective')).slice(0, 3);
+// If not enough featured posts, fallback to some other posts
+if (featuredPosts.length < 3) {
+	const extra = posts.filter(p => !featuredPosts.includes(p)).slice(0, 3 - featuredPosts.length);
+	featuredPosts.push(...extra);
+}
+
+const recentArchive = posts.slice(4, 8);
+
+const topics = [
+	{ name: 'Astro & Blogging', desc: 'Building and deploying this blog', tags: ['astro', 'blogging'] },
+	{ name: 'Database & SQL', desc: 'SQL basics and advanced tutorials', tags: ['sql', 'database'] },
+	{ name: 'Workflow & Efficiency', desc: 'Tools and methods for productivity', tags: ['workflow', 'productivity'] },
+	{ name: 'Retrospectives', desc: 'Project reflections and learnings', tags: ['retrospective', 'learning'] }
+];
+
+const topicCards = topics.map(topic => {
+	const count = posts.filter(post => post.data.tags.some(tag => topic.tags.includes(tag))).length;
+	return { ...topic, count };
+}).filter(t => t.count > 0);
+
+
+// Tag Explorer
+const tags = posts.flatMap((post) => post.data.tags);
+const tagCounts = tags.reduce((acc, tag) => {
+	acc[tag] = (acc[tag] || 0) + 1;
+	return acc;
+}, {} as Record<string, number>);
+const topTags = Object.entries(tagCounts)
+	.sort((a, b) => b[1] - a[1])
+	.slice(0, 10);
 ---
 
 <!doctype html>
@@ -24,51 +57,144 @@ const posts = (await getCollection('blog'))
 	</head>
 	<body>
 		<Header />
-		<main>
-			<section class="hero">
-				<p class="eyebrow">DONGZE'S BLOG</p>
-				<h1>Hi, I'm DongZe 👋</h1>
-				<p class="intro">Student developer from Chongqing, sharing reproducible practice in computer vision, time series, and VibeCoding.</p>
-				<div class="cta-group">
-					<a class="btn primary" href="blog/">Read posts</a>
-					<a class="btn" href="about/">About me</a>
-					<a class="btn" href="search/">Search</a>
+		<main class="dashboard">
+			<!-- Hero + Quick Hub -->
+			<section class="dash-hero">
+				<div class="hero-content">
+					<p class="eyebrow">DONGZE'S BLOG</p>
+					<h1>Hi, I'm DongZe 👋</h1>
+					<p class="intro">Student developer from Chongqing, sharing reproducible practice in computer vision, time series, and VibeCoding.</p>
+				</div>
+				<div class="quick-hub">
+					<a href="search/" class="search-entry">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+						<span>Search articles, tags, or keywords...</span>
+					</a>
+					<div class="quick-links">
+						<a href="blog/" class="quick-link">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+							All Posts
+						</a>
+						<a href="about/" class="quick-link">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+							About Me
+						</a>
+					</div>
 				</div>
 			</section>
 
-			<section class="focus-grid">
-				<article>
-					<h2>Computer Vision</h2>
-					<p>Experiment notes, model insights, and practical implementation details.</p>
-				</article>
-				<article>
-					<h2>Time Series</h2>
-					<p>Forecasting workflows, feature design, and reproducible evaluation habits.</p>
-				</article>
-				<article>
-					<h2>VibeCoding</h2>
-					<p>AI-assisted coding workflows, toolchains, and rapid idea-to-shipping practice.</p>
-				</article>
-			</section>
-
-			<section class="latest">
-				<div class="latest-head">
-					<h2>Latest Posts</h2>
-					<a href="blog/">View all</a>
-				</div>
-				<ul>
-					{posts.map((post) => {
-						const slug = post.id.slice('en/'.length);
-						return (
-							<li>
-								<a class="post-link" href={`blog/${slug}/`}>
-									<h3>{post.data.title}</h3>
-									<p class="meta"><FormattedDate date={post.data.publishedAt || post.data.pubDate} /></p>
+			<div class="dash-grid">
+				<!-- Latest Releases -->
+				<section class="dash-card latest-releases">
+					<div class="card-header">
+						<h2>Latest Releases</h2>
+						<a href="blog/" class="view-all">View all &rarr;</a>
+					</div>
+					<div class="post-list">
+						{latestPosts.map((post) => {
+							const slug = post.id.slice('en/'.length);
+							return (
+								<a class="post-item" href={`blog/${slug}/`}>
+									<div class="post-info">
+										<h3>{post.data.title}</h3>
+										<p class="meta">
+											<FormattedDate date={post.data.publishedAt || post.data.pubDate} />
+											{post.data.tags.length > 0 && (
+												<>
+													<span class="dot">&bull;</span>
+													<span class="tags">{post.data.tags.slice(0, 2).join(', ')}</span>
+												</>
+											)}
+										</p>
+									</div>
 								</a>
-							</li>
-						);
-					})}
-				</ul>
+							);
+						})}
+					</div>
+				</section>
+
+				<!-- Topic Dashboard / Tag Explorer -->
+				<section class="dash-card tag-explorer">
+					<div class="card-header">
+						<h2>Popular Tags</h2>
+					</div>
+					<div class="tag-cloud">
+						{topTags.map(([tag, count]) => (
+							<a href="blog/" class="tag-badge">
+								<span class="tag-name">#{tag}</span>
+								<span class="tag-count">{count}</span>
+							</a>
+						))}
+					</div>
+				</section>
+
+				
+				<!-- Topic Dashboard -->
+				<section class="dash-card topic-dashboard">
+					<div class="card-header">
+						<h2>Topic Dashboard</h2>
+					</div>
+					<div class="topic-grid">
+						{topicCards.map((topic) => (
+							<a href="blog/" class="topic-card">
+								<div class="topic-info">
+									<h3>{topic.name}</h3>
+									<p>{topic.desc}</p>
+								</div>
+								<span class="topic-count">{topic.count} posts</span>
+							</a>
+						))}
+					</div>
+				</section>
+
+				<!-- Featured Reads -->
+				<section class="dash-card featured-reads">
+					<div class="card-header">
+						<h2>Featured Reads</h2>
+					</div>
+					<div class="featured-grid">
+						{featuredPosts.map((post) => {
+							const slug = post.id.slice('en/'.length);
+							return (
+								<a class="featured-card" href={`blog/${slug}/`}>
+									<h3>{post.data.title}</h3>
+									<p class="desc">{post.data.description}</p>
+								</a>
+							);
+						})}
+					</div>
+				</section>
+
+				<!-- Recently Updated -->
+				<section class="dash-card recent-archive">
+					<div class="card-header">
+						<h2>Recent Archive</h2>
+						<a href="blog/" class="view-all">View all &rarr;</a>
+					</div>
+					<div class="post-list compact">
+						{recentArchive.map((post) => {
+							const slug = post.id.slice('en/'.length);
+							return (
+								<a class="post-item" href={`blog/${slug}/`}>
+									<div class="post-info">
+										<h3>{post.data.title}</h3>
+										<p class="meta"><FormattedDate date={post.data.publishedAt || post.data.pubDate} /></p>
+									</div>
+								</a>
+							);
+						})}
+					</div>
+				</section>
+			</div>
+
+			<!-- Footer CTA -->
+			<section class="footer-cta">
+				<h2>Ready to dive in?</h2>
+				<p>Explore all articles, or use search to find what you're looking for.</p>
+				<div class="cta-actions">
+					<a href="blog/" class="btn primary">Explore all posts</a>
+					<a href="search/" class="btn">Search content</a>
+				</div>
 			</section>
 		</main>
 		<Footer />
@@ -76,18 +202,29 @@ const posts = (await getCollection('blog'))
 </html>
 
 <style>
-	main {
+	.dashboard {
 		width: 100%;
-		max-width: 980px;
+		max-width: 1080px;
 		margin: 0 auto;
-		padding: 2rem 1rem 3.5rem;
+		padding: 2rem 1rem 4rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
 	}
 
-	.hero {
-		padding: 2.1rem;
-		border-radius: 16px;
+	/* Hero Section */
+	.dash-hero {
+		display: flex;
+		gap: 2rem;
+		align-items: center;
 		background: rgb(var(--gray-light) / 24%);
 		border: 1px solid rgb(var(--gray-light));
+		border-radius: 16px;
+		padding: 2.5rem;
+	}
+
+	.hero-content {
+		flex: 1;
 	}
 
 	.eyebrow {
@@ -96,9 +233,10 @@ const posts = (await getCollection('blog'))
 		text-transform: uppercase;
 		font-size: 0.74rem;
 		color: rgb(var(--gray));
+		font-weight: 600;
 	}
 
-	h1 {
+	.hero-content h1 {
 		margin: 0.6rem 0 0.9rem;
 		font-size: clamp(2rem, 4vw, 2.7rem);
 	}
@@ -106,25 +244,337 @@ const posts = (await getCollection('blog'))
 	.intro {
 		margin: 0;
 		max-width: 58ch;
-		font-size: 1rem;
+		font-size: 1.05rem;
 		line-height: 1.65;
+		color: rgb(var(--gray-dark));
 	}
 
-	.cta-group {
+	.quick-hub {
+		flex: 0 0 320px;
 		display: flex;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-		margin-top: 1.4rem;
+		flex-direction: column;
+		gap: 0.8rem;
 	}
 
-	.btn {
-		display: inline-block;
-		padding: 0.56rem 0.92rem;
-		border: 1px solid rgba(var(--gray), 0.45);
-		border-radius: 9px;
+	.search-entry {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.85rem 1rem;
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 12px;
+		text-decoration: none;
+		color: rgb(var(--gray));
+		font-size: 0.95rem;
+		transition: all 0.2s ease;
+	}
+
+	.search-entry:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+		box-shadow: 0 4px 12px rgba(var(--accent), 0.08);
+	}
+
+	.quick-links {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.8rem;
+	}
+
+	.quick-link {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 0.85rem;
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 12px;
 		text-decoration: none;
 		color: rgb(var(--gray-dark));
 		font-weight: 600;
+		font-size: 0.9rem;
+		transition: all 0.2s ease;
+	}
+
+	.quick-link:hover {
+		background: rgb(var(--gray-light) / 40%);
+		border-color: rgb(var(--gray));
+	}
+
+	/* Dashboard Grid */
+	.dash-grid {
+		display: grid;
+		grid-template-columns: repeat(12, 1fr);
+		gap: 1.5rem;
+	}
+
+	.dash-card {
+		background: white;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 16px;
+		padding: 1.5rem;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.card-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 1.2rem;
+	}
+
+	.card-header h2 {
+		margin: 0;
+		font-size: 1.2rem;
+		font-weight: 700;
+	}
+
+	.view-all {
+		font-size: 0.9rem;
+		text-decoration: none;
+		color: var(--accent);
+		font-weight: 600;
+	}
+
+	.view-all:hover {
+		text-decoration: underline;
+	}
+
+	/* Grid Placements */
+	.latest-releases { grid-column: span 8; }
+	.tag-explorer { grid-column: span 4; }
+	.featured-reads { grid-column: span 6; }
+	.recent-archive { grid-column: span 6; }
+	.topic-dashboard { grid-column: span 12; }
+
+	/* Post Lists */
+	.post-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.post-item {
+		display: block;
+		padding: 0.8rem 1rem;
+		border-radius: 10px;
+		text-decoration: none;
+		border: 1px solid transparent;
+		transition: all 0.2s ease;
+	}
+
+	.post-item:hover {
+		background: rgb(var(--gray-light) / 30%);
+		border-color: rgb(var(--gray-light));
+	}
+
+	.post-item h3 {
+		margin: 0 0 0.3rem 0;
+		font-size: 1.05rem;
+		color: rgb(var(--black));
+	}
+
+	.meta {
+		margin: 0;
+		font-size: 0.85rem;
+		color: rgb(var(--gray));
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.dot {
+		font-size: 0.8rem;
+		opacity: 0.5;
+	}
+
+	.tags {
+		text-transform: capitalize;
+	}
+
+	
+	/* Topic Dashboard */
+	.topic-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+		gap: 1rem;
+	}
+
+	.topic-card {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		padding: 1.2rem;
+		border-radius: 12px;
+		background: rgb(var(--gray-light) / 15%);
+		border: 1px solid rgb(var(--gray-light));
+		text-decoration: none;
+		transition: all 0.2s ease;
+	}
+
+	.topic-card:hover {
+		background: white;
+		border-color: var(--accent);
+		box-shadow: 0 4px 12px rgba(var(--accent), 0.05);
+		transform: translateY(-2px);
+	}
+
+	.topic-info h3 {
+		margin: 0 0 0.4rem 0;
+		font-size: 1.05rem;
+		color: rgb(var(--black));
+	}
+
+	.topic-info p {
+		margin: 0;
+		font-size: 0.85rem;
+		color: rgb(var(--gray));
+		line-height: 1.4;
+	}
+
+	.topic-count {
+		background: rgb(var(--gray-light) / 50%);
+		color: rgb(var(--gray-dark));
+		font-size: 0.75rem;
+		padding: 0.2rem 0.5rem;
+		border-radius: 10px;
+		font-weight: 600;
+		white-space: nowrap;
+		margin-left: 1rem;
+	}
+
+	/* Tag Cloud */
+	.tag-cloud {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+	}
+
+	.tag-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.4rem 0.8rem;
+		background: rgb(var(--gray-light) / 30%);
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 20px;
+		text-decoration: none;
+		font-size: 0.85rem;
+		transition: all 0.2s ease;
+	}
+
+	.tag-badge:hover {
+		background: white;
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.tag-name {
+		color: rgb(var(--gray-dark));
+		font-weight: 500;
+	}
+
+	.tag-badge:hover .tag-name {
+		color: var(--accent);
+	}
+
+	.tag-count {
+		background: white;
+		color: rgb(var(--gray));
+		font-size: 0.75rem;
+		padding: 0.1rem 0.4rem;
+		border-radius: 10px;
+		font-weight: 600;
+	}
+
+	/* Featured Grid */
+	.featured-grid {
+		display: grid;
+		gap: 1rem;
+		grid-template-columns: 1fr;
+	}
+
+	.featured-card {
+		display: block;
+		padding: 1.2rem;
+		border-radius: 12px;
+		background: rgb(var(--gray-light) / 15%);
+		border: 1px solid rgb(var(--gray-light));
+		text-decoration: none;
+		transition: all 0.2s ease;
+	}
+
+	.featured-card:hover {
+		background: white;
+		border-color: var(--accent);
+		box-shadow: 0 4px 12px rgba(var(--accent), 0.05);
+		transform: translateY(-2px);
+	}
+
+	.featured-card h3 {
+		margin: 0 0 0.5rem 0;
+		font-size: 1.1rem;
+		color: rgb(var(--black));
+	}
+
+	.featured-card .desc {
+		margin: 0;
+		font-size: 0.9rem;
+		color: rgb(var(--gray));
+		line-height: 1.5;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	/* Footer CTA */
+	.footer-cta {
+		text-align: center;
+		padding: 3.5rem 2rem;
+		background: rgb(var(--gray-light) / 24%);
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 16px;
+		margin-top: 1rem;
+	}
+
+	.footer-cta h2 {
+		margin: 0 0 0.8rem 0;
+		font-size: 1.8rem;
+	}
+
+	.footer-cta p {
+		margin: 0 0 2rem 0;
+		color: rgb(var(--gray-dark));
+		font-size: 1.05rem;
+	}
+
+	.cta-actions {
+		display: flex;
+		justify-content: center;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.7rem 1.4rem;
+		border: 1px solid rgba(var(--gray), 0.45);
+		border-radius: 10px;
+		text-decoration: none;
+		color: rgb(var(--gray-dark));
+		font-weight: 600;
+		font-size: 1rem;
+		transition: all 0.2s ease;
+	}
+
+	.btn:hover {
+		background: rgb(var(--gray-light) / 50%);
 	}
 
 	.btn.primary {
@@ -133,125 +583,49 @@ const posts = (await getCollection('blog'))
 		color: white;
 	}
 
-	.focus-grid {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.85rem;
-		margin-top: 1rem;
+	.btn.primary:hover {
+		background: var(--accent-dark);
+		border-color: var(--accent-dark);
 	}
 
-	.focus-grid article {
-		padding: 1rem;
-		border: 1px solid rgb(var(--gray-light));
-		border-radius: 12px;
-		background: white;
-	}
-
-	.latest {
-		margin-top: 1.2rem;
-		border: 1px solid rgb(var(--gray-light));
-		border-radius: 12px;
-		padding: 1rem;
-		background: white;
-	}
-
-	.latest-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 0.6rem;
-	}
-
-	.latest-head h2 {
-		margin: 0;
-		font-size: 1.1rem;
-	}
-
-	.latest-head a {
-		font-size: 0.9rem;
-		text-decoration: none;
-	}
-
-	.latest ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		gap: 0.45rem;
-	}
-
-	.post-link {
-		display: block;
-		padding: 0.7rem 0.75rem;
-		border-radius: 10px;
-		text-decoration: none;
-		border: 1px solid transparent;
-	}
-
-	.post-link:hover {
-		border-color: rgb(var(--gray-light));
-		background: rgb(var(--gray-light) / 24%);
-	}
-
-	.post-link h3 {
-		margin: 0;
-		font-size: 1rem;
-	}
-
-	.meta {
-		margin: 0.28rem 0 0;
-		font-size: 0.84rem;
-		color: rgb(var(--gray));
-	}
-
-	.focus-grid h2 {
-		margin: 0;
-		font-size: 1.05rem;
-	}
-
-	.focus-grid p {
-		margin: 0.6rem 0 0;
-	}
-
-	@media (max-width: 780px) {
-		.focus-grid {
-			grid-template-columns: 1fr;
+	/* Responsive */
+	@media (max-width: 960px) {
+		.dash-hero {
+			flex-direction: column;
+			align-items: stretch;
+			padding: 2rem;
 		}
-
-		.hero {
-			padding: 1.4rem;
+		.quick-hub {
+			flex: auto;
 		}
+		.latest-releases { grid-column: span 12; }
+		.tag-explorer { grid-column: span 12; }
+		.featured-reads { grid-column: span 12; }
+		.recent-archive { grid-column: span 12; }
+		.topic-dashboard { grid-column: span 12; }
 	}
 
 	@media (max-width: 448px) {
-		.hero {
-			padding: 1.2rem;
-			border-radius: 12px;
+		.dashboard {
+			padding: 1rem 1rem 3.5rem;
 		}
-		h1 {
+		.dash-hero {
+			padding: 1.5rem;
+		}
+		.hero-content h1 {
 			font-size: 1.8rem;
 		}
-		.cta-group {
+		.dash-card {
+			padding: 1.2rem;
+		}
+		.quick-links {
+			grid-template-columns: 1fr;
+		}
+		.cta-actions {
 			flex-direction: column;
-			gap: 0.6rem;
 		}
 		.btn {
-			text-align: center;
-			min-height: 44px;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-		}
-		.focus-grid article {
-			padding: 0.85rem;
-		}
-		.latest {
-			padding: 0.85rem;
-		}
-		.post-link {
-			padding: 0.6rem;
-			min-height: 44px;
+			width: 100%;
 		}
 	}
 </style>
